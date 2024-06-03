@@ -99,9 +99,11 @@ def main():
     os.makedirs("results", exist_ok=True)
 
 
-    prompts = DATASETS[args.dataset]["load"]()
+    data = DATASETS[args.dataset]["load"]()
     if args.num_samples > 0:
-        prompts = prompts[:args.num_samples]
+        data = data[:args.num_samples]
+    prompts = [d[0] for d in data]
+    responses = [d[1] for d in data]
     llm = LLM(model=MODELS[args.model])
     sampling_params = SamplingParams(
         temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS[args.dataset], stop=["\n"]
@@ -112,11 +114,11 @@ def main():
     results = []
     total_score = 0.0
     start = time()
-    for output in tqdm(outputs):
+    for output, true_response in tqdm(zip(outputs, responses), total=len(prompts)):
         prompt = output.prompt
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
-        score = DATASETS[args.dataset]["score"](prompt, parsed_response)
+        score = DATASETS[args.dataset]["score"](prompt, true_response)
         total_score += score
         if args.verbose:
             print(f"Prompt: {prompt!r}, Generated text: {generated_text!r}, Parsed response: {parsed_response!r}, Score: {score}")
@@ -124,6 +126,7 @@ def main():
             "prompt": prompt,
             "generated_text": generated_text,
             "parsed_response": parsed_response,
+            "true_response": true_response,
             "score": score
         })
     print(f"Estimated throughput: {len(outputs) / (time() - start):.2f} samples per second")
