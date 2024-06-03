@@ -94,12 +94,13 @@ def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tu
         for line in f:
             example = json.loads(line)
             prompt = gsm8k_prompt.format(question=example["question"])
-            true_answer = float(example["answer"].split("####")[-1].strip())
+            true_answer = float(example["answer"].split("####")[-1].strip().replace(",", ""))
             data.append((prompt, true_answer))
     return data
 
 
 def parse_gsm8k_response(response: str) -> float | None:
+    response = response.replace(",", "")
     response = re.sub(r'[^\w\s]', ' ', response)
     words = response.split()
     for word in reversed(words):
