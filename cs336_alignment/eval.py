@@ -184,7 +184,7 @@ def main():
             "true_response": true_response,
             "score": score
         })
-    file_path = f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.txt"
+    file_path = f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
     with open(file_path, "w") as file:
         json.dump(results, file, indent=2)
     print(f"Total score: {total_score / len(outputs)}")
