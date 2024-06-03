@@ -55,7 +55,10 @@ def load_mmlu_prompts(split: str = "test", path: str = "data/mmlu") -> list[tupl
     return data
 
 def parse_mmlu_response(response: str) -> str | None:
-    answer = response.split("The correct answer is ")[1][0]
+    answer = response.split("The correct answer is ")
+    if len(answer) != 2:
+        return None
+    answer = answer[1][0]
     if answer not in "ABCD":
         return None
     return answer
