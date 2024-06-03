@@ -119,7 +119,7 @@ def main():
         prompt = output.prompt
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
-        score = DATASETS[args.dataset]["score"](true_response, true_response)
+        score = DATASETS[args.dataset]["score"](true_response, parsed_response)
         total_score += score
         if args.verbose:
             print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n")
