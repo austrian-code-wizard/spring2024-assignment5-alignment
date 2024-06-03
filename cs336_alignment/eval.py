@@ -1,5 +1,6 @@
 import csv
 import os
+import re
 import json
 import argparse
 from time import time
@@ -42,6 +43,24 @@ D. {options[3]}
 # Answer:"""
 
 
+gsm8k_prompt = """\
+# Instruction
+Below is a list of conversations between a human and an AI assistant (you).
+Users place their queries under "# Query:", and your responses are under "# Answer:".
+You are a helpful, respectful, and honest assistant.
+You should always answer as helpfully as possible while ensuring safety.
+Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
+Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
+Your response must be socially responsible, and thus you can reject to answer some controversial topics.
+
+# Query:
+{question}
+
+# Answer:
+"""
+
+
+
 def load_mmlu_prompts(split: str = "test", path: str = "data/mmlu") -> list[tuple[str, str]]:
     data = []
     for filename in os.listdir(f"{path}/{split}"):
@@ -69,11 +88,44 @@ def score_mmlu_response(correct_response: str, parsed_response: str | None):
     return 1.0 if parsed_response.strip() == correct_response.strip() else 0.0
 
 
+def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tuple[str, float]]:
+    data = []
+    with open(f"{path}/{split}.jsonl", "r") as f:
+        for line in f:
+            example = json.loads(line)
+            prompt = gsm8k_prompt.format(question=example["question"])
+            true_answer = float(example["answer"].split("####")[-1].strip())
+            data.append((prompt, true_answer))
+    return data
+
+
+def parse_gsm8k_response(response: str) -> float | None:
+    response = re.sub(r'[^\w\s]', ' ', response)
+    words = response.split()
+    for word in reversed(words):
+        try:
+            return float(word)
+        except ValueError:
+            continue
+    return None
+
+
+def score_gsm8k_response(correct_response: float, parsed_response: float | None):
+    if parsed_response is None:
+        return 0.0
+    return 1.0 if parsed_response == correct_response else 0.0
+
+
 DATASETS = {
     "mmlu": {
         "load": load_mmlu_prompts,
         "parse": parse_mmlu_response,
         "score": score_mmlu_response,
+    },
+    "gsm8k": {
+        "load": load_gsm8k_prompts,
+        "parse": parse_gsm8k_response,
+        "score": score_gsm8k_response,
     }
 }
 
