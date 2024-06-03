@@ -100,8 +100,10 @@ def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tu
 
 
 def parse_gsm8k_response(response: str) -> float | None:
+    if response.endswith("."):
+        response = response[:-1]
     response = response.replace(",", "")
-    response = re.sub(r'[^\w\s]', ' ', response)
+    response = re.sub(r'[^\w\s.]', ' ', response)
     words = response.split()
     for word in reversed(words):
         try:
