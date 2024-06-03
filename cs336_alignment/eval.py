@@ -136,7 +136,8 @@ MODELS = {
 }
 
 MAX_TOKENS = {
-    "mmlu": 1024
+    "mmlu": 1024,
+    "gsm8k": 1024,
 }
 
 
