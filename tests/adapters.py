@@ -104,7 +104,10 @@ def run_parse_gsm8k_response(
         else None.
     """
     from cs336_alignment.eval import parse_gsm8k_response
-    return parse_gsm8k_response(model_output)
+    pred = parse_gsm8k_response(model_output)
+    if round(pred) == pred:
+        return str(int(pred))
+    return str(pred)
 
 
 def compute_per_instance_dpo_loss(
