@@ -63,10 +63,10 @@ def parse_mmlu_response(response: str) -> str | None:
     return answer
 
 
-def score_mmlu_response(sample: tuple[str, str], parsed_response: str | None):
+def score_mmlu_response(correct_response: str, parsed_response: str | None):
     if parsed_response is None:
         return 0.0
-    return 1.0 if parsed_response == sample[1] else 0.0
+    return 1.0 if parsed_response.strip() == correct_response.strip() else 0.0
 
 
 DATASETS = {
@@ -119,7 +119,7 @@ def main():
         prompt = output.prompt
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
-        score = DATASETS[args.dataset]["score"](prompt, true_response)
+        score = DATASETS[args.dataset]["score"](true_response, true_response)
         total_score += score
         if args.verbose:
             print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n")
