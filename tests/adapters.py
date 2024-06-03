@@ -105,6 +105,8 @@ def run_parse_gsm8k_response(
     """
     from cs336_alignment.eval import parse_gsm8k_response
     pred = parse_gsm8k_response(model_output)
+    if pred is None:
+        return None
     if round(pred) == pred:
         return str(int(pred))
     return str(pred)
