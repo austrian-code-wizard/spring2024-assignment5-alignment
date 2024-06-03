@@ -43,24 +43,6 @@ D. {options[3]}
 # Answer:"""
 
 
-gsm8k_prompt = """\
-# Instruction
-Below is a list of conversations between a human and an AI assistant (you).
-Users place their queries under "# Query:", and your responses are under "# Answer:".
-You are a helpful, respectful, and honest assistant.
-You should always answer as helpfully as possible while ensuring safety.
-Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
-Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
-Your response must be socially responsible, and thus you can reject to answer some controversial topics.
-
-# Query:
-{question}
-
-# Answer:
-"""
-
-
-
 def load_mmlu_prompts(split: str = "test", path: str = "data/mmlu") -> list[tuple[str, str]]:
     data = []
     for filename in os.listdir(f"{path}/{split}"):
@@ -86,6 +68,23 @@ def score_mmlu_response(correct_response: str, parsed_response: str | None):
     if parsed_response is None:
         return 0.0
     return 1.0 if parsed_response.strip() == correct_response.strip() else 0.0
+
+
+gsm8k_prompt = """\
+# Instruction
+Below is a list of conversations between a human and an AI assistant (you).
+Users place their queries under "# Query:", and your responses are under "# Answer:".
+You are a helpful, respectful, and honest assistant.
+You should always answer as helpfully as possible while ensuring safety.
+Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
+Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
+Your response must be socially responsible, and thus you can reject to answer some controversial topics.
+
+# Query:
+{question}
+
+# Answer:
+"""
 
 
 def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tuple[str, float]]:
@@ -154,6 +153,53 @@ def score_gsm8k_response(correct_response: float, parsed_response: float | None)
     return 1.0 if parsed_response == correct_response else 0.0
 
 
+alpace_prompt = """\
+# Instruction
+Below is a list of conversations between a human and an AI assistant (you).
+Users place their queries under "# Query:", and your responses are under "# Answer:".
+You are a helpful, respectful, and honest assistant.
+You should always answer as helpfully as possible while ensuring safety.
+Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
+Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
+Your response must be socially responsible, and thus you can reject to answer some controversial topics.
+
+# Query:
+{question}
+
+# Answer:
+"""
+
+
+def load_alpaca_prompts(split: str = "eval", path: str = "data/alpaca_eval") -> list[tuple[str, str]]:
+    data = []
+    with open(f"{path}/alpaca_{split}.jsonl", "r") as f:
+        for line in f:
+            example = json.loads(line)
+            prompt = alpace_prompt.format(question=example["instruction"])
+            data.append((prompt, example["output"]))
+    return data
+
+
+def parse_alpaca_response(response: str) -> str | None:
+    return response
+
+
+def score_alpaca_response_batch(data: dict[str, str | int | None], model_name: str):
+    scores = []
+    for d in data:
+        scores.append({
+            "instruction": d["prompt"],
+            "output": d["generated_text"],
+            "generator": model_name
+        })
+    with open("results/alpaca_scores.json", "w+") as f:
+        json.dump(scores, f, indent=2)
+    import subprocess
+
+    command = "conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir 'results'"
+    subprocess.run(command, shell=True, check=True)
+
+
 DATASETS = {
     "mmlu": {
         "load": load_mmlu_prompts,
@@ -164,6 +210,11 @@ DATASETS = {
         "load": load_gsm8k_prompts,
         "parse": parse_gsm8k_response,
         "score": score_gsm8k_response,
+    },
+    "alpaca": {
+        "load": load_alpaca_prompts,
+        "parse": parse_alpaca_response,
+        "score": score_alpaca_response_batch
     }
 }
 
@@ -176,6 +227,7 @@ MODELS = {
 MAX_TOKENS = {
     "mmlu": 1024,
     "gsm8k": 1024,
+    "alpaca": 1024
 }
 
 
@@ -210,7 +262,11 @@ def main():
         prompt = output.prompt
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
-        score = DATASETS[args.dataset]["score"](true_response, parsed_response)
+
+        if args.dataset == "alpaca":
+            score == 0.0
+        else:
+            score = DATASETS[args.dataset]["score"](true_response, parsed_response)
         total_score += score
         if args.verbose:
             print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n")
@@ -226,6 +282,9 @@ def main():
         json.dump(results, file, indent=2)
     print(f"Total score: {total_score / len(outputs)}")
     print(f"Results saved to {file_path}")
+
+    if args.dataset == "alpaca":
+        DATASETS[args.dataset]["score"](results, args.model)
 
 
 if __name__ == "__main__":
