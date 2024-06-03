@@ -3,7 +3,6 @@ import os
 import json
 import argparse
 from time import time
-from tqdm import tqdm
 from datetime import datetime
 from vllm import LLM, SamplingParams
 
@@ -109,15 +108,14 @@ def main():
     responses = [d[1] for d in data]
     llm = LLM(model=MODELS[args.model])
     sampling_params = SamplingParams(
-        temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS[args.dataset], stop=["\n"]
+        temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS[args.dataset], stop=["# Query:"]
     )
 
     outputs = llm.generate(prompts, sampling_params)
 
     results = []
     total_score = 0.0
-    start = time()
-    for output, true_response in tqdm(zip(outputs, responses), total=len(prompts)):
+    for output, true_response in zip(outputs, responses):
         prompt = output.prompt
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
@@ -132,7 +130,6 @@ def main():
             "true_response": true_response,
             "score": score
         })
-    print(f"Estimated throughput: {len(outputs) / (time() - start):.2f} samples per second")
     file_path = f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.txt"
     with open(file_path, "w") as file:
         json.dump(results, file, indent=2)
