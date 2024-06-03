@@ -122,7 +122,7 @@ def main():
         score = DATASETS[args.dataset]["score"](prompt, true_response)
         total_score += score
         if args.verbose:
-            print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Score: {score}\n\n")
+            print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n")
         results.append({
             "prompt": prompt,
             "generated_text": generated_text,
