@@ -264,7 +264,7 @@ def main():
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
 
         if args.dataset == "alpaca":
-            score == 0.0
+            score = 0.0
         else:
             score = DATASETS[args.dataset]["score"](true_response, parsed_response)
         total_score += score
