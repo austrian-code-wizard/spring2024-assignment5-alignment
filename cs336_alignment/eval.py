@@ -178,9 +178,41 @@ def score_alpaca_response_batch(results: dict[str, str | int | None], model_name
     with open("results/alpaca_scores.json", "w+") as f:
         json.dump(scores, f, indent=2)
 
-    command = "conda init && conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir '.'"
-    subprocess.run(command, shell=True, check=True)
+    # Now run `alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir '.'``
 
+
+def load_simple_safety_prompts(split: str = "", path: str = "data/simple_safety_tests") -> list[dict[str, str]]:
+    data = []
+    with open(f"{path}/simple_safety_tests.csv") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            data.append({
+                "instruction": row["prompts_final"],
+                "output": None
+            })
+    return data
+
+
+def parse_simple_safety_response(response: str) -> str | None:
+    return response
+
+
+def score_simple_safety_response(results: list[dict[str, str]]):
+    with open("results/simple_safety_scores.json", "w+") as f:
+        for d in results:
+            res = {
+                "prompts_final": d["prompt"],
+                "output": d["generated_text"],
+            }
+            f.write(f"{json.dumps(res)}\n")
+
+    """Now run ```bash
+python scripts/evaluate_safety.py \
+--input-path results/simple_safety_scores.json \
+--model-name-or-path /home/shared/Meta-Llama-3-70B-Instruct \
+--num-gpus 2 \
+--output-path simple_safety_results.json
+    ```"""
 
 DATASETS = {
     "mmlu": {
@@ -197,6 +229,11 @@ DATASETS = {
         "load": load_alpaca_prompts,
         "parse": parse_alpaca_response,
         "score": score_alpaca_response_batch
+    },
+    "simple_safety": {
+        "load": load_simple_safety_prompts,
+        "parse": parse_simple_safety_response,
+        "score": score_simple_safety_response
     }
 }
 
@@ -230,7 +267,7 @@ def main():
     if args.num_samples > 0:
         data = data[:args.num_samples]
     
-    if args.dataset == "alpaca":
+    if args.dataset in ["alpaca", "simple_safety"]:
         prompts = [d["instruction"] for d in data]
         responses = [d["output"] for d in data]
     else:
@@ -250,7 +287,7 @@ def main():
         generated_text = output.outputs[0].text
         parsed_response = DATASETS[args.dataset]["parse"](generated_text)
 
-        if args.dataset == "alpaca":
+        if args.dataset in ["alpaca", "simple_safety"]:
             score = 0.0
         else:
             score = DATASETS[args.dataset]["score"](true_response, parsed_response)
@@ -273,6 +310,8 @@ def main():
     if args.dataset == "alpaca":
         dataset_names = [d["dataset"] for d in data]
         DATASETS[args.dataset]["score"](results, args.model, dataset_names)
+    elif args.dataset == "simple_safety":
+        DATASETS[args.dataset]["score"](results)
 
 
 if __name__ == "__main__":
