@@ -196,7 +196,7 @@ def score_alpaca_response_batch(data: dict[str, str | int | None], model_name: s
     with open("results/alpaca_scores.json", "w+") as f:
         json.dump(scores, f, indent=2)
 
-    command = "conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir 'results'"
+    command = "conda init && conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir 'results'"
     subprocess.run(command, shell=True, check=True)
 
 
