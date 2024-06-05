@@ -171,13 +171,13 @@ Your response must be socially responsible, and thus you can reject to answer so
 """
 
 
-def load_alpaca_prompts(split: str = "eval", path: str = "data/alpaca_eval") -> list[tuple[str, str]]:
+def load_alpaca_prompts(split: str = "eval", path: str = "data/alpaca_eval") -> list[dict[str, str]]:
     data = []
     with open(f"{path}/alpaca_{split}.jsonl", "r") as f:
         for line in f:
             example = json.loads(line)
             prompt = alpace_prompt.format(question=example["instruction"])
-            data.append((prompt, example["output"]))
+            data.append({**example, "prompt": prompt})
     return data
 
 
@@ -248,8 +248,13 @@ def main():
     data = DATASETS[args.dataset]["load"]()
     if args.num_samples > 0:
         data = data[:args.num_samples]
-    prompts = [d[0] for d in data]
-    responses = [d[1] for d in data]
+    
+    if args.dataset == "alpaca":
+        prompts = [d["prompt"] for d in data]
+        responses = [d["output"] for d in data]
+    else:
+        prompts = [d[0] for d in data]
+        responses = [d[1] for d in data]
     llm = LLM(model=MODELS[args.model])
     sampling_params = SamplingParams(
         temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS[args.dataset], stop=["# Query:"]
@@ -285,7 +290,7 @@ def main():
     print(f"Results saved to {file_path}")
 
     if args.dataset == "alpaca":
-        dataset_names = [d["dataset"] for d in results]
+        dataset_names = [d["dataset"] for d in data]
         DATASETS[args.dataset]["score"](results, args.model, dataset_names)
 
 
