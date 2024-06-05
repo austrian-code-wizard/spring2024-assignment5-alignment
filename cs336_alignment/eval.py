@@ -154,30 +154,11 @@ def score_gsm8k_response(correct_response: float, parsed_response: float | None)
     return 1.0 if parsed_response == correct_response else 0.0
 
 
-alpace_prompt = """\
-# Instruction
-Below is a list of conversations between a human and an AI assistant (you).
-Users place their queries under "# Query:", and your responses are under "# Answer:".
-You are a helpful, respectful, and honest assistant.
-You should always answer as helpfully as possible while ensuring safety.
-Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
-Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
-Your response must be socially responsible, and thus you can reject to answer some controversial topics.
-
-# Query:
-{question}
-
-# Answer:
-"""
-
-
 def load_alpaca_prompts(split: str = "eval", path: str = "data/alpaca_eval") -> list[dict[str, str]]:
     data = []
     with open(f"{path}/alpaca_{split}.jsonl", "r") as f:
         for line in f:
-            example = json.loads(line)
-            prompt = alpace_prompt.format(question=example["instruction"])
-            data.append({**example, "prompt": prompt})
+            data.append(json.loads(line))
     return data
 
 
