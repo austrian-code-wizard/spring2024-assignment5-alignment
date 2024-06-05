@@ -166,11 +166,11 @@ def parse_alpaca_response(response: str) -> str | None:
     return response
 
 
-def score_alpaca_response_batch(data: dict[str, str | int | None], model_name: str, dataset_names: list[str]):
+def score_alpaca_response_batch(results: dict[str, str | int | None], model_name: str, dataset_names: list[str]):
     scores = []
-    for d, name in zip(data, dataset_names):
+    for d, name in zip(results, dataset_names):
         scores.append({
-            "instruction": d["instruction"],
+            "instruction": d["prompt"],
             "output": d["generated_text"],
             "generator": model_name,
             "dataset": name
