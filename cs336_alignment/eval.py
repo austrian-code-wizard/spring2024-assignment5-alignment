@@ -185,18 +185,19 @@ def parse_alpaca_response(response: str) -> str | None:
     return response
 
 
-def score_alpaca_response_batch(data: dict[str, str | int | None], model_name: str):
+def score_alpaca_response_batch(data: dict[str, str | int | None], model_name: str, dataset_names: list[str]):
     scores = []
-    for d in data:
+    for d, name in zip(data, dataset_names):
         scores.append({
             "instruction": d["prompt"],
             "output": d["generated_text"],
-            "generator": model_name
+            "generator": model_name,
+            "dataset": name
         })
     with open("results/alpaca_scores.json", "w+") as f:
         json.dump(scores, f, indent=2)
 
-    command = "conda init && conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir 'results'"
+    command = "conda init && conda activate cs336_alignment && alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir '.'"
     subprocess.run(command, shell=True, check=True)
 
 
@@ -284,7 +285,8 @@ def main():
     print(f"Results saved to {file_path}")
 
     if args.dataset == "alpaca":
-        DATASETS[args.dataset]["score"](results, args.model)
+        dataset_names = [d["dataset"] for d in results]
+        DATASETS[args.dataset]["score"](results, args.model, dataset_names)
 
 
 if __name__ == "__main__":
