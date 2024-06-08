@@ -57,7 +57,7 @@ def main(config: Config, run_name: str = None):
         run_name += "-"
     run_name += datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    wandb.init(project="cs336-alignment", entity="wandb", name=run_name, config=config)
+    wandb.init(project="cs336", name=run_name, config=config)
 
     tokenizer = AutoTokenizer.from_pretrained(config.model_name_or_path)
     model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
