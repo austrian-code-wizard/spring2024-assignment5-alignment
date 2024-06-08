@@ -120,7 +120,7 @@ def main(config: Config, run_name: str = None):
             if config.log_to_wandb:
                 wandb.log({"train_loss": cur_loss / config.grad_accum_steps, "lr": lr})
             if cur_step % config.log_every == 0:
-                print(f"Step {cur_step}/{num_steps}, Loss: {cur_loss / config.grad_accum_steps}")
+                print(f"Step {cur_step}/{num_steps} ({cur_step/num_steps*100:.2f}%), Loss: {cur_loss / config.grad_accum_steps}")
             cur_loss = 0
 
             if cur_step % (num_steps // config.num_checkpoints) == 0:
