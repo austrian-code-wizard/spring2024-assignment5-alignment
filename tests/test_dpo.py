@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-
 import torch
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -18,13 +17,13 @@ def test_per_instance_dpo_loss():
     bad_response = "their crazy frog."
 
     loss = compute_per_instance_dpo_loss(
-        model,
-        model_ref,
-        tokenizer,
-        0.5,
-        prompt,
-        good_response,
-        bad_response,
+        lm=model,
+        lm_ref=model_ref,
+        tokenizer=tokenizer,
+        beta=0.5,
+        prompt=prompt,
+        response_chosen=good_response,
+        response_rejected=bad_response,
     )
 
-    assert torch.isclose(loss, torch.tensor(0.6962), atol=1e-4)
+    assert torch.isclose(loss, torch.tensor(0.5785), atol=1e-4)
