@@ -74,7 +74,7 @@ def main(config: Config, run_name: str = None):
     )
     wandb.watch(model, log="all")
 
-    dataset = SFTDataset(tokenizer, config.dataset_path, seq_length=config.seq_length, shuffle=True)
+    dataset = SFTDataset(tokenizer, config.dataset_path, seq_length=config.seq_length, shuffle=True, num_samples=config.num_samples)
     data_loader = iterate_batches(dataset, batch_size=config.batch_size, shuffle=True)
 
     if config.optimizer == "adamw":
