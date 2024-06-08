@@ -126,6 +126,7 @@ def main(config: Config, run_name: str = None):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
+    parser.add_argument("--run", type=str, default=None)
     parser.add_argument("--model_name_or_path", type=str, default="/data/Meta-Llama-3-8B")
     parser.add_argument("--dataset_path", type=str, default="/home/shared/safety_augmented_ultrachat_200k_single_turn/train.jsonl.gz")
     parser.add_argument("--output_dir", type=str, default="sft_results")
@@ -141,4 +142,4 @@ if __name__ == "__main__":
         loss_fn=args.loss_fn,
         num_checkpoints=args.num_checkpoints,
     )
-    main(config)
+    main(config, run_name=args.run)
