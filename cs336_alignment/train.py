@@ -17,6 +17,7 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 class Config:
     model_name_or_path: str = "/data/Meta-Llama-3-8B"
     dataset_path: str = "/home/shared/safety_augmented_ultrachat_200k_single_turn/train.jsonl.gz"
+    val_dataset_path: str = "/home/shared/safety_augmented_ultrachat_200k_single_turn/test.jsonl.gz"
     output_dir: str = "sft_results"
     optimizer: Literal["adamw", "rmsprop"] = "adamw"
     loss_fn:  Literal["sft", "dpo"] = "sft"
@@ -30,6 +31,8 @@ class Config:
     log_to_wandb: bool = True
     use_lr_schedule: bool = True
     num_samples: int = -1
+    num_val_batches: int = 64
+    val_every: int = 256
 
 
 def learning_rate_schedule(
@@ -76,6 +79,7 @@ def main(config: Config, run_name: str = None):
     wandb.watch(model, log="all")
 
     dataset = SFTDataset(tokenizer, config.dataset_path, seq_length=config.seq_length, shuffle=True, num_samples=config.num_samples)
+    test_dataset = SFTDataset(tokenizer, config.val_dataset_path, seq_length=config.seq_length, shuffle=False, num_samples=config.num_samples)
     data_loader = iterate_batches(dataset, batch_size=config.batch_size, shuffle=True)
 
     if config.optimizer == "adamw":
@@ -118,8 +122,10 @@ def main(config: Config, run_name: str = None):
             optimizer.step()
             optimizer.zero_grad()
             cur_step += 1
+            wandb_log = {}
             if config.log_to_wandb:
-                wandb.log({"train_loss": cur_loss / config.grad_accum_steps, "lr": lr})
+                wandb_log[ "train_loss"] = cur_loss / config.grad_accum_steps
+                wandb_log["lr"] = lr
             if cur_step % config.log_every == 0:
                 print(f"\nStep {cur_step}/{num_steps} ({cur_step/num_steps*100:.2f}%), Loss: {cur_loss / config.grad_accum_steps}")
             cur_loss = 0
@@ -127,6 +133,27 @@ def main(config: Config, run_name: str = None):
             if cur_step % (num_steps // config.num_checkpoints) == 0:
                 model.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
                 tokenizer.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
+            if cur_step % config.val_every == 0:
+                val_data_loader = iterate_batches(test_dataset, batch_size=config.batch_size, shuffle=False)
+                val_loss = 0
+                val_iters = 0
+                model.eval()
+                with torch.no_grad():
+                    for val_batch in val_data_loader:
+                        input_ids = val_batch["input_ids"].to(device)
+                        logits = model(input_ids).logits
+                        labels = val_batch["labels"].to(device)
+                        loss = loss_fn(logits.view(-1, model.vocab_size), labels.view(-1))
+                        val_loss += loss.item()
+                        val_iters += 1
+                        if val_iters >= config.num_val_batches:
+                            break
+                model.train()
+                wandb_log["val_loss"] = val_loss / config.num_val_batches
+                print(f"\nStep {cur_step}/{num_steps} ({cur_step/num_steps*100:.2f}%), Validation loss: {val_loss / config.num_val_batches}")
+
+            if len(wandb_log) > 0 and config.log_to_wandb:
+                wandb.log(wandb_log)
 
     wandb.finish()
     model.save_pretrained(save_directory=config.output_dir)
