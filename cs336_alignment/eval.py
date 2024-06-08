@@ -239,8 +239,8 @@ DATASETS = {
 
 
 MODELS = {
-    "llama3-8b": "/data/Meta-Llama-3-8B/",
-    "llama3-70b": "/home/shared/Meta-Llama-3-70b-Instruct/",
+    "llama3-8b": "/data/Meta-Llama-3-8B",
+    "llama3-70b": "/home/shared/Meta-Llama-3-70B-Instruct",
 }
 
 MAX_TOKENS = {
