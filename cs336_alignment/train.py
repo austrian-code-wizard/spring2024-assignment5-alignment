@@ -83,9 +83,9 @@ def main(config: Config, run_name: str = None):
     data_loader = iterate_batches(dataset, batch_size=config.batch_size, shuffle=True)
 
     if config.optimizer == "adamw":
-        optimizer = torch.optim.AdamW(model.parameters(), lr=5e-5)
+        optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
     elif config.optimizer == "rmsprop":
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=5e-5)
+        optimizer = torch.optim.RMSprop(model.parameters(), lr=config.lr)
 
     if config.loss_fn == "sft":
         loss_fn = torch.nn.CrossEntropyLoss()
