@@ -3,6 +3,7 @@ import math
 import torch
 import wandb
 import argparse
+from tqdm import tqdm
 from typing import Literal
 from datetime import datetime
 from dataclasses import dataclass
