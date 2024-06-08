@@ -16,7 +16,7 @@ prompt_format = """Below is an instruction that describes a task. Write a respon
 
 
 class SFTDataset(torch.utils.data.Dataset):
-    def __init__(self, tokenizer, dataset_path: str, seq_length: int, shuffle: bool):
+    def __init__(self, tokenizer, dataset_path: str, seq_length: int, shuffle: bool, num_samples: int = -1):
         if str(dataset_path).endswith(".gz"):
             assert str(dataset_path).endswith(".jsonl.gz"), "Only support .jsonl files"
             with gzip.open(dataset_path, "r") as f:
@@ -27,6 +27,8 @@ class SFTDataset(torch.utils.data.Dataset):
                 data = [json.loads(line) for line in f]
         if shuffle:
             random.shuffle(data)
+        if num_samples > 0:
+            data = data[:num_samples]
         data = [prompt_format.format(**d) for d in data]
         data = [tokenizer.encode(d) + [tokenizer.eos_token_id] for d in tqdm(data)]
         data = [token for sequence in data for token in sequence]

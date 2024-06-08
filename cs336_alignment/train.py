@@ -25,9 +25,10 @@ class Config:
     grad_accum_steps: int = 4
     lr: float = 2e-5
     warmup_ratio: float = 0.03
-    log_every: int = 50
+    log_every: int = 25
     log_to_wandb: bool = True
     use_lr_schedule: bool = True
+    num_samples: int = -1
 
 
 def learning_rate_schedule(
@@ -57,16 +58,21 @@ def main(config: Config, run_name: str = None):
         run_name += "-"
     run_name += datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-    wandb.init(project="cs336", name=run_name, config=config)
-
     tokenizer = AutoTokenizer.from_pretrained(config.model_name_or_path)
     model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
         config.model_name_or_path,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
+        device=device,
     )
-    model.to(device)
     model.train()
+
+    wandb.init(
+        project="cs336",
+        name=run_name,
+        config=config
+    )
+    wandb.watch(model, log="all")
 
     dataset = SFTDataset(tokenizer, config.dataset_path, seq_length=config.seq_length, shuffle=True)
     data_loader = iterate_batches(dataset, batch_size=config.batch_size, shuffle=True)
@@ -105,12 +111,14 @@ def main(config: Config, run_name: str = None):
                 )
                 for param_group in optimizer.param_groups:
                     param_group["lr"] = lr
+            else:
+                lr = optimizer.param_groups[0]["lr"]
 
             optimizer.step()
             optimizer.zero_grad()
             cur_step += 1
             if config.log_to_wandb:
-                wandb.log({"train_loss": cur_loss / config.grad_accum_steps})
+                wandb.log({"train_loss": cur_loss / config.grad_accum_steps, "lr": lr})
             if cur_step % config.log_every == 0:
                 print(f"Step {cur_step}/{num_steps}, Loss: {cur_loss / config.grad_accum_steps}")
             cur_loss = 0
@@ -119,7 +127,7 @@ def main(config: Config, run_name: str = None):
                 model.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
                 tokenizer.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
 
-    
+    wandb.finish()
     model.save_pretrained(save_directory=config.output_dir)
     tokenizer.save_pretrained(save_directory=config.output_dir)
 
@@ -133,6 +141,7 @@ if __name__ == "__main__":
     parser.add_argument("--optimizer", type=str, default="adamw")
     parser.add_argument("--loss_fn", type=str, default="sft")
     parser.add_argument("--num_checkpoints", type=int, default=10)
+    parser.add_argument("--num_samples", type=int, default=-1)
     args = parser.parse_args()
     config = Config(
         model_name_or_path=args.model_name_or_path,
@@ -141,5 +150,6 @@ if __name__ == "__main__":
         optimizer=args.optimizer,
         loss_fn=args.loss_fn,
         num_checkpoints=args.num_checkpoints,
+        num_samples=args.num_samples
     )
     main(config, run_name=args.run)
