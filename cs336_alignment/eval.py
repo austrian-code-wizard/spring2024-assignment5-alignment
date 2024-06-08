@@ -99,39 +99,6 @@ def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tu
     return data
 
 
-numbers_as_words = {
-    "zero": 0,
-    "one": 1,
-    "two": 2,
-    "three": 3,
-    "four": 4,
-    "five": 5,
-    "six": 6,
-    "seven": 7,
-    "eight": 8,
-    "nine": 9,
-    "ten": 10,
-    "eleven": 11,
-    "twelve": 12,
-    "thirteen": 13,
-    "fourteen": 14,
-    "fifteen": 15,
-    "sixteen": 16,
-    "seventeen": 17,
-    "eighteen": 18,
-    "nineteen": 19,
-    "twenty": 20,
-    "thirty": 30,
-    "forty": 40,
-    "fifty": 50,
-    "sixty": 60,
-    "seventy": 70,
-    "eighty": 80,
-    "ninety": 90,
-    "hundred": 100
-}
-
-
 def parse_gsm8k_response(response: str) -> float | None:
     if response.endswith("."):
         response = response[:-1]
@@ -140,8 +107,6 @@ def parse_gsm8k_response(response: str) -> float | None:
     words = response.split()
     for word in reversed(words):
         try:
-            if word in numbers_as_words:
-                return numbers_as_words[word]
             return float(word)
         except ValueError:
             continue
