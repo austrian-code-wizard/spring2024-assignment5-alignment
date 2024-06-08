@@ -1,4 +1,10 @@
 import os
+
+# Increase timeout to prevent wandb errors
+os.environ["WANDB__SERVICE_WAIT"] = "300"
+# turn off watch to log faster
+os.environ["WANDB_WATCH"]="false"
+
 import math
 import torch
 import wandb
