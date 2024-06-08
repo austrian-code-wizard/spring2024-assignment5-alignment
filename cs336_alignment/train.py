@@ -93,7 +93,7 @@ def main(config: Config, run_name: str = None):
 
     cur_loss = 0
     cur_step = 0
-    for idx, (train_batch) in enumerate(data_loader):
+    for idx, (train_batch) in tqdm(enumerate(data_loader)):
         input_ids = train_batch["input_ids"].to(device)
         logits = model(input_ids).logits
         labels = train_batch["labels"].to(device)
