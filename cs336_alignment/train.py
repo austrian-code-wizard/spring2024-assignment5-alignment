@@ -32,7 +32,7 @@ class Config:
     use_lr_schedule: bool = True
     num_samples: int = -1
     num_val_batches: int = 64
-    val_every: int = 256
+    val_every: int = 250
 
 
 def learning_rate_schedule(
@@ -94,7 +94,9 @@ def main(config: Config, run_name: str = None):
 
     num_batches = len(dataset) // config.batch_size
     num_steps = num_batches // config.grad_accum_steps
-    os.makedirs(config.output_dir, exist_ok=True)
+
+    output_dir = os.path.join(config.output_dir, run_name)
+    os.makedirs(output_dir, exist_ok=True)
 
     cur_loss = 0
     cur_step = 0
@@ -131,9 +133,11 @@ def main(config: Config, run_name: str = None):
             cur_loss = 0
 
             if cur_step % (num_steps // config.num_checkpoints) == 0:
-                model.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
-                tokenizer.save_pretrained(save_directory=os.path.join(config.output_dir, f"checkpoint_{idx}"))
+                print(f"\nSaving checkpoint {cur_step}")
+                model.save_pretrained(save_directory=os.path.join(output_dir, f"checkpoint_{cur_step}"))
+                tokenizer.save_pretrained(save_directory=os.path.join(output_dir, f"checkpoint_{cur_step}"))
             if cur_step % config.val_every == 0:
+                print(f"\nRunning validation {cur_step}")
                 val_data_loader = iterate_batches(test_dataset, batch_size=config.batch_size, shuffle=False)
                 val_loss = 0
                 val_iters = 0
@@ -156,8 +160,8 @@ def main(config: Config, run_name: str = None):
                 wandb.log(wandb_log)
 
     wandb.finish()
-    model.save_pretrained(save_directory=config.output_dir)
-    tokenizer.save_pretrained(save_directory=config.output_dir)
+    model.save_pretrained(save_directory=output_dir)
+    tokenizer.save_pretrained(save_directory=output_dir)
 
 
 if __name__ == "__main__":
