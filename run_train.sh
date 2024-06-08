@@ -3,13 +3,12 @@
 #SBATCH --partition=batch
 #SBATCH --time=24:00:00
 #SBATCH --nodes=1
-#SBATCH --cpus-per-task=4
-#SBATCH --mem=80G
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=96G
 #SBATCH --gpus=1
+#SBATCH --output=sbatch/%j.out
+#SBATCH --error=sbatch/%j.err
 
-# only use the following on partition with GPUs
-
-#SBATCH --output=sbatch/logs/%j.out
 
 # list out some useful information (optional)
 echo "SLURM_JOBID="$SLURM_JOBID
@@ -28,7 +27,7 @@ python3 --version
 nvidia-smi
 
 # Print command
-echo "Running the following command: python cs336_alignment/train.py"
+echo "Running the following command: python cs336_alignment/train.py --run sft_train"
 
 # Run command
 python cs336_alignment/train.py --run sft_train
