@@ -63,7 +63,7 @@ def main(config: Config, run_name: str = None):
         config.model_name_or_path,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
-        device=device,
+        device_map=device,
     )
     model.train()
 
