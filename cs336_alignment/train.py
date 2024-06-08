@@ -94,7 +94,7 @@ def main(config: Config, run_name: str = None):
 
     cur_loss = 0
     cur_step = 0
-    for idx, (train_batch) in tqdm(enumerate(data_loader)):
+    for idx, (train_batch) in tqdm(enumerate(data_loader), total=num_batches):
         input_ids = train_batch["input_ids"].to(device)
         logits = model(input_ids).logits
         labels = train_batch["labels"].to(device)
@@ -121,7 +121,7 @@ def main(config: Config, run_name: str = None):
             if config.log_to_wandb:
                 wandb.log({"train_loss": cur_loss / config.grad_accum_steps, "lr": lr})
             if cur_step % config.log_every == 0:
-                print(f"Step {cur_step}/{num_steps} ({cur_step/num_steps*100:.2f}%), Loss: {cur_loss / config.grad_accum_steps}")
+                print(f"\nStep {cur_step}/{num_steps} ({cur_step/num_steps*100:.2f}%), Loss: {cur_loss / config.grad_accum_steps}")
             cur_loss = 0
 
             if cur_step % (num_steps // config.num_checkpoints) == 0:
