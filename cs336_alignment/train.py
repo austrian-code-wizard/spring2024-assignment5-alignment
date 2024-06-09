@@ -82,7 +82,6 @@ def main(config: Config, run_name: str = None):
         name=run_name,
         config=config
     )
-    wandb.watch(model, log="all")
 
     dataset = SFTDataset(tokenizer, config.dataset_path, seq_length=config.seq_length, shuffle=True, num_samples=config.num_samples)
     test_dataset = SFTDataset(tokenizer, config.val_dataset_path, seq_length=config.seq_length, shuffle=False, num_samples=config.num_samples)
