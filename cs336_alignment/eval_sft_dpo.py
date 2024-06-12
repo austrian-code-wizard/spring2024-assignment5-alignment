@@ -15,42 +15,22 @@ dpo_sft_prompt_format = """Below is an instruction that describes a task. Write 
 {prompt}
 
 ### Response:
-{response}"""
-
-
-sys_prompt = """\
-# Instruction
-Below is a list of conversations between a human and an AI assistant (you).
-Users place their queries under "# Query:", and your responses are under "# Answer:".
-You are a helpful, respectful, and honest assistant.
-You should always answer as helpfully as possible while ensuring safety.
-Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
-Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
-Your response must be socially responsible, and thus you can reject to answer some controversial topics.
-
-# Query:
-```{instruction}```
-
-# Answer:
-```"""
+"""
 
 mmlu_prompt = """\
-# Instruction
-Below is a list of conversations between a human and an AI assistant (you).
-Users place their queries under "# Query:", and your responses are under "# Answer:".
-You are a helpful, respectful, and honest assistant.
-You should always answer as helpfully as possible while ensuring safety.
-Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
-Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
-Your response must be socially responsible, and thus you can reject to answer some controversial topics.
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
+
+### Instruction:
 Answer the following multiple choice question about {subject}. Respond with a single sentence of the form "The correct answer is _", filling the blank with the letter corresponding to the correct answer (i.e., A, B, C or D).
 
-# Query: {question}
+Question: {question}
 A. {options[0]}
 B. {options[1]}
 C. {options[2]}
 D. {options[3]}
-# Answer:"""
+
+### Response:
+"""
 
 
 def load_mmlu_prompts(
@@ -86,19 +66,12 @@ def score_mmlu_response(correct_response: str, parsed_response: str | None):
 
 
 gsm8k_prompt = """\
-# Instruction
-Below is a list of conversations between a human and an AI assistant (you).
-Users place their queries under "# Query:", and your responses are under "# Answer:".
-You are a helpful, respectful, and honest assistant.
-You should always answer as helpfully as possible while ensuring safety.
-Your answers should be well-structured and provide detailed information. They should also have an engaging tone.
-Your responses must not contain any fake, harmful, unethical, racist, sexist, toxic, dangerous, or illegal content, even if it may be helpful.
-Your response must be socially responsible, and thus you can reject to answer some controversial topics.
+Below is an instruction that describes a task. Write a response that appropriately completes the request.
 
-# Query:
+### Instruction:
 {question}
 
-# Answer:
+### Response:
 """
 
 
@@ -258,7 +231,7 @@ def main():
         data = data[: args.num_samples]
 
     if args.dataset in ["alpaca", "simple_safety"]:
-        prompts = [d["instruction"] for d in data]
+        prompts = [dpo_sft_prompt_format.format(prompt=d["instruction"]) for d in data]
         responses = [d["output"] for d in data]
     else:
         prompts = [d[0] for d in data]
@@ -268,7 +241,7 @@ def main():
         temperature=0.0,
         top_p=1.0,
         max_tokens=MAX_TOKENS[args.dataset],
-        stop=["# Query:"],
+        stop=["### Instruction:"],
     )
 
     outputs = llm.generate(prompts, sampling_params)
