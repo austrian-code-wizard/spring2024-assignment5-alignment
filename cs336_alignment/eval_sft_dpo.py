@@ -131,7 +131,7 @@ def score_alpaca_response_batch(
     for d, name in zip(results, dataset_names):
         scores.append(
             {
-                "instruction": d["prompt"],
+                "instruction": d["prompt"].split("### Instruction:\n", maxsplit=1)[1].split("\n### Response:", maxsplit=1)[0],
                 "output": d["generated_text"],
                 "generator": model_name,
                 "dataset": name,
@@ -162,7 +162,7 @@ def score_simple_safety_response(results: list[dict[str, str]]):
     with open("results/simple_safety_scores.json", "w+") as f:
         for d in results:
             res = {
-                "prompts_final": d["prompt"],
+                "prompts_final": d["prompt"].split("### Instruction:\n", maxsplit=1)[1].split("\n### Response:", maxsplit=1)[0],
                 "output": d["generated_text"],
             }
             f.write(f"{json.dumps(res)}\n")
