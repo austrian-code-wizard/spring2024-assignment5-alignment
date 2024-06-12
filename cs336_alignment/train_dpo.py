@@ -10,11 +10,10 @@ import torch
 import wandb
 import argparse
 from tqdm import tqdm
-from typing import Literal
 from datetime import datetime
 from dataclasses import dataclass
-from cs336_alignment.sft import SFTDataset, iterate_batches
 from transformers import AutoModelForCausalLM, AutoTokenizer, PreTrainedModel
+from cs336_alignment.dpo import get_dpo_dataset, dpo_loss
 
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -22,27 +21,20 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 @dataclass
 class Config:
     model_name_or_path: str = "/data/Meta-Llama-3-8B"
-    dataset_path: str = (
-        "/home/shared/safety_augmented_ultrachat_200k_single_turn/train.jsonl.gz"
-    )
-    val_dataset_path: str = (
-        "/home/shared/safety_augmented_ultrachat_200k_single_turn/test.jsonl.gz"
-    )
-    output_dir: str = "sft_results"
-    optimizer: Literal["adamw", "rmsprop"] = "adamw"
-    loss_fn: Literal["sft", "dpo"] = "sft"
-    num_checkpoints: int = 10
+    output_dir: str = "dpo_results"
+    num_checkpoints: int = 4
     seq_length: int = 512
-    batch_size: int = 2
-    grad_accum_steps: int = 4
-    lr: float = 2e-5
+    batch_size: int = 1
+    grad_accum_steps: int = 64
+    lr: float = 1e-6
     warmup_ratio: float = 0.03
     log_every: int = 25
     log_to_wandb: bool = True
     use_lr_schedule: bool = True
     num_samples: int = -1
-    num_val_batches: int = 64
+    num_val_batches: int = 200
     val_every: int = 250
+    dpo_beta: float = 0.1
 
 
 def learning_rate_schedule(
@@ -72,44 +64,35 @@ def main(config: Config, run_name: str = None):
         run_name += "-"
     run_name += datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    devices = torch.cuda.device_count()
+    assert devices >= 2, "This script requires at least 2 GPUs to run."
+    model_device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+    ref_device = torch.device("cuda:1" if torch.cuda.is_available() else "cpu")
+
     tokenizer = AutoTokenizer.from_pretrained(config.model_name_or_path)
     model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
         config.model_name_or_path,
         torch_dtype=torch.bfloat16,
         attn_implementation="flash_attention_2",
     )
-    model.to(device)
+    model.to(model_device)
     model.train()
+
+    ref_model: PreTrainedModel = AutoModelForCausalLM.from_pretrained(
+        config.model_name_or_path,
+        torch_dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+    ref_model.to(ref_device)
+    ref_model.eval()
 
     wandb.init(project="cs336", name=run_name, config=config)
 
-    dataset = SFTDataset(
-        tokenizer,
-        config.dataset_path,
-        seq_length=config.seq_length,
-        shuffle=True,
-        num_samples=config.num_samples,
-    )
-    test_dataset = SFTDataset(
-        tokenizer,
-        config.val_dataset_path,
-        seq_length=config.seq_length,
-        shuffle=False,
-        num_samples=config.num_samples,
-    )
-    data_loader = iterate_batches(dataset, batch_size=config.batch_size, shuffle=True)
+    train_dataset, val_dataset = get_dpo_dataset()
 
-    if config.optimizer == "adamw":
-        optimizer = torch.optim.AdamW(model.parameters(), lr=config.lr)
-    elif config.optimizer == "rmsprop":
-        optimizer = torch.optim.RMSprop(model.parameters(), lr=config.lr)
+    optimizer = torch.optim.RMSprop(model.parameters(), lr=config.lr)
 
-    if config.loss_fn == "sft":
-        loss_fn = torch.nn.CrossEntropyLoss()
-    elif config.loss_fn == "dpo":
-        raise NotImplementedError("DPO loss is not implemented yet.")
-
-    num_batches = len(dataset) // config.batch_size
+    num_batches = len(train_dataset) // config.batch_size
     num_steps = num_batches // config.grad_accum_steps
 
     output_dir = os.path.join(config.output_dir, run_name)
@@ -117,11 +100,16 @@ def main(config: Config, run_name: str = None):
 
     cur_loss = 0
     cur_step = 0
-    for idx, (train_batch) in tqdm(enumerate(data_loader), total=num_batches):
-        input_ids = train_batch["input_ids"].to(device)
-        logits = model(input_ids).logits
-        labels = train_batch["labels"].to(device)
-        loss = loss_fn(logits.view(-1, model.vocab_size), labels.view(-1))
+    for idx, (train_batch) in tqdm(enumerate(train_dataset), total=num_batches):
+        loss = dpo_loss(
+            model,
+            ref_model,
+            tokenizer,
+            config.dpo_beta,
+            train_batch["prompt"],
+            train_batch["chosen"],
+            train_batch["rejected"],
+        )
         loss.backward()
         cur_loss += loss.item()
         if (idx + 1) % config.grad_accum_steps == 0:
@@ -162,19 +150,19 @@ def main(config: Config, run_name: str = None):
                 )
             if cur_step % config.val_every == 0:
                 print(f"\nRunning validation {cur_step}")
-                val_data_loader = iterate_batches(
-                    test_dataset, batch_size=config.batch_size, shuffle=False
-                )
                 val_loss = 0
                 val_iters = 0
                 model.eval()
                 with torch.no_grad():
-                    for val_batch in val_data_loader:
-                        input_ids = val_batch["input_ids"].to(device)
-                        logits = model(input_ids).logits
-                        labels = val_batch["labels"].to(device)
-                        loss = loss_fn(
-                            logits.view(-1, model.vocab_size), labels.view(-1)
+                    for val_batch in val_dataset:
+                        loss = dpo_loss(
+                            model,
+                            ref_model,
+                            tokenizer,
+                            config.dpo_beta,
+                            val_batch["prompt"],
+                            val_batch["chosen"],
+                            val_batch["rejected"],
                         )
                         val_loss += loss.item()
                         val_iters += 1
@@ -200,23 +188,13 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_name_or_path", type=str, default="/data/Meta-Llama-3-8B"
     )
-    parser.add_argument(
-        "--dataset_path",
-        type=str,
-        default="/home/shared/safety_augmented_ultrachat_200k_single_turn/train.jsonl.gz",
-    )
-    parser.add_argument("--output_dir", type=str, default="sft_results")
-    parser.add_argument("--optimizer", type=str, default="adamw")
-    parser.add_argument("--loss_fn", type=str, default="sft")
+    parser.add_argument("--output_dir", type=str, default="dpo_results")
     parser.add_argument("--num_checkpoints", type=int, default=10)
     parser.add_argument("--num_samples", type=int, default=-1)
     args = parser.parse_args()
     config = Config(
         model_name_or_path=args.model_name_or_path,
-        dataset_path=args.dataset_path,
         output_dir=args.output_dir,
-        optimizer=args.optimizer,
-        loss_fn=args.loss_fn,
         num_checkpoints=args.num_checkpoints,
         num_samples=args.num_samples,
     )
