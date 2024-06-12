@@ -5,7 +5,7 @@
 #SBATCH --nodes=1
 #SBATCH --cpus-per-task=8
 #SBATCH --mem=96G
-#SBATCH --gpus=1
+#SBATCH --gpus=2
 #SBATCH --output=sbatch/%j.out
 #SBATCH --error=sbatch/%j.err
 
