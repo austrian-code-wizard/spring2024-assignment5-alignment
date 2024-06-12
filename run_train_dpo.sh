@@ -30,4 +30,4 @@ nvidia-smi
 echo "Running the following command: python cs336_alignment/train_dpo.py --run dpo_train"
 
 # Run command
-python cs336_alignment/train.py --run sft_train
+python cs336_alignment/train_dpo.py --run dpo_train
