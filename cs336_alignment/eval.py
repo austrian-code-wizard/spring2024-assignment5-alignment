@@ -44,16 +44,21 @@ D. {options[3]}
 # Answer:"""
 
 
-def load_mmlu_prompts(split: str = "test", path: str = "data/mmlu") -> list[tuple[str, str]]:
+def load_mmlu_prompts(
+    split: str = "test", path: str = "data/mmlu"
+) -> list[tuple[str, str]]:
     data = []
     for filename in os.listdir(f"{path}/{split}"):
         subject = " ".join(filename.split("_")[:-1])
         with open(f"{path}/{split}/{filename}", "r") as f:
             reader = csv.reader(f)
             for row in reader:
-                prompt = mmlu_prompt.format(subject=subject, question=row[0], options=row[1:-1])
+                prompt = mmlu_prompt.format(
+                    subject=subject, question=row[0], options=row[1:-1]
+                )
                 data.append((prompt, row[-1]))
     return data
+
 
 def parse_mmlu_response(response: str) -> str | None:
     answer = response.split("The correct answer is ")
@@ -88,13 +93,17 @@ Your response must be socially responsible, and thus you can reject to answer so
 """
 
 
-def load_gsm8k_prompts(split: str = "test", path: str = "data/gsm8k") -> list[tuple[str, float]]:
+def load_gsm8k_prompts(
+    split: str = "test", path: str = "data/gsm8k"
+) -> list[tuple[str, float]]:
     data = []
     with open(f"{path}/{split}.jsonl", "r") as f:
         for line in f:
             example = json.loads(line)
             prompt = gsm8k_prompt.format(question=example["question"])
-            true_answer = float(example["answer"].split("####")[-1].strip().replace(",", ""))
+            true_answer = float(
+                example["answer"].split("####")[-1].strip().replace(",", "")
+            )
             data.append((prompt, true_answer))
     return data
 
@@ -103,7 +112,7 @@ def parse_gsm8k_response(response: str) -> float | None:
     if response.endswith("."):
         response = response[:-1]
     response = response.replace(",", "")
-    response = re.sub(r'[^\w\s.]', ' ', response)
+    response = re.sub(r"[^\w\s.]", " ", response)
     words = response.split()
     for word in reversed(words):
         try:
@@ -119,7 +128,9 @@ def score_gsm8k_response(correct_response: float, parsed_response: float | None)
     return 1.0 if parsed_response == correct_response else 0.0
 
 
-def load_alpaca_prompts(split: str = "eval", path: str = "data/alpaca_eval") -> list[dict[str, str]]:
+def load_alpaca_prompts(
+    split: str = "eval", path: str = "data/alpaca_eval"
+) -> list[dict[str, str]]:
     data = []
     with open(f"{path}/alpaca_{split}.jsonl", "r") as f:
         for line in f:
@@ -131,30 +142,33 @@ def parse_alpaca_response(response: str) -> str | None:
     return response
 
 
-def score_alpaca_response_batch(results: dict[str, str | int | None], model_name: str, dataset_names: list[str]):
+def score_alpaca_response_batch(
+    results: dict[str, str | int | None], model_name: str, dataset_names: list[str]
+):
     scores = []
     for d, name in zip(results, dataset_names):
-        scores.append({
-            "instruction": d["prompt"],
-            "output": d["generated_text"],
-            "generator": model_name,
-            "dataset": name
-        })
+        scores.append(
+            {
+                "instruction": d["prompt"],
+                "output": d["generated_text"],
+                "generator": model_name,
+                "dataset": name,
+            }
+        )
     with open("results/alpaca_scores.json", "w+") as f:
         json.dump(scores, f, indent=2)
 
     # Now run `alpaca_eval --model_outputs results/alpaca_scores.json --annotators_config 'scripts/alpaca_eval_vllm_llama3_70b_fn' --base-dir '.'``
 
 
-def load_simple_safety_prompts(split: str = "", path: str = "data/simple_safety_tests") -> list[dict[str, str]]:
+def load_simple_safety_prompts(
+    split: str = "", path: str = "data/simple_safety_tests"
+) -> list[dict[str, str]]:
     data = []
     with open(f"{path}/simple_safety_tests.csv") as f:
         reader = csv.DictReader(f)
         for row in reader:
-            data.append({
-                "instruction": row["prompts_final"],
-                "output": None
-            })
+            data.append({"instruction": row["prompts_final"], "output": None})
     return data
 
 
@@ -179,6 +193,7 @@ python scripts/evaluate_safety.py \
 --output-path simple_safety_results.json
     ```"""
 
+
 DATASETS = {
     "mmlu": {
         "load": load_mmlu_prompts,
@@ -193,13 +208,13 @@ DATASETS = {
     "alpaca": {
         "load": load_alpaca_prompts,
         "parse": parse_alpaca_response,
-        "score": score_alpaca_response_batch
+        "score": score_alpaca_response_batch,
     },
     "simple_safety": {
         "load": load_simple_safety_prompts,
         "parse": parse_simple_safety_response,
-        "score": score_simple_safety_response
-    }
+        "score": score_simple_safety_response,
+    },
 }
 
 
@@ -208,19 +223,18 @@ MODELS = {
     "llama3-70b": "/home/shared/Meta-Llama-3-70B-Instruct",
 }
 
-MAX_TOKENS = {
-    "mmlu": 1024,
-    "gsm8k": 1024,
-    "alpaca": 1024,
-    "simple_safety": 1024
-}
+MAX_TOKENS = {"mmlu": 1024, "gsm8k": 1024, "alpaca": 1024, "simple_safety": 1024}
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--dataset", type=str, choices=DATASETS.keys(), required=True)
-    parser.add_argument("--split", type=str, choices=["train", "val", "test"], default="test")
-    parser.add_argument("--verbose", action="store_true", help="Increase output verbosity")
+    parser.add_argument(
+        "--split", type=str, choices=["train", "val", "test"], default="test"
+    )
+    parser.add_argument(
+        "--verbose", action="store_true", help="Increase output verbosity"
+    )
     parser.add_argument("--model", type=str, choices=MODELS.keys(), default="llama3-8b")
     parser.add_argument("--num_samples", type=int, default=-1)
     parser.add_argument("--results_path", type=str, default="results")
@@ -228,11 +242,10 @@ def main():
 
     os.makedirs("results", exist_ok=True)
 
-
     data = DATASETS[args.dataset]["load"]()
     if args.num_samples > 0:
-        data = data[:args.num_samples]
-    
+        data = data[: args.num_samples]
+
     if args.dataset in ["alpaca", "simple_safety"]:
         prompts = [d["instruction"] for d in data]
         responses = [d["output"] for d in data]
@@ -241,7 +254,10 @@ def main():
         responses = [d[1] for d in data]
     llm = LLM(model=MODELS[args.model])
     sampling_params = SamplingParams(
-        temperature=0.0, top_p=1.0, max_tokens=MAX_TOKENS[args.dataset], stop=["# Query:"]
+        temperature=0.0,
+        top_p=1.0,
+        max_tokens=MAX_TOKENS[args.dataset],
+        stop=["# Query:"],
     )
 
     outputs = llm.generate(prompts, sampling_params)
@@ -259,15 +275,21 @@ def main():
             score = DATASETS[args.dataset]["score"](true_response, parsed_response)
         total_score += score
         if args.verbose:
-            print(f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n")
-        results.append({
-            "prompt": prompt,
-            "generated_text": generated_text,
-            "parsed_response": parsed_response,
-            "true_response": true_response,
-            "score": score
-        })
-    file_path = f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
+            print(
+                f"###Prompt: {prompt}\n###Generated text: {generated_text}\n###Parsed response: {parsed_response}\n###Correct response: {true_response}\n###Score: {score}\n\n"
+            )
+        results.append(
+            {
+                "prompt": prompt,
+                "generated_text": generated_text,
+                "parsed_response": parsed_response,
+                "true_response": true_response,
+                "score": score,
+            }
+        )
+    file_path = (
+        f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
+    )
     with open(file_path, "w") as file:
         json.dump(results, file, indent=2)
     print(f"Total score: {total_score / len(outputs)}")

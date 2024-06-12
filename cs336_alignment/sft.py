@@ -16,7 +16,14 @@ prompt_format = """Below is an instruction that describes a task. Write a respon
 
 
 class SFTDataset(torch.utils.data.Dataset):
-    def __init__(self, tokenizer, dataset_path: str, seq_length: int, shuffle: bool, num_samples: int = -1):
+    def __init__(
+        self,
+        tokenizer,
+        dataset_path: str,
+        seq_length: int,
+        shuffle: bool,
+        num_samples: int = -1,
+    ):
         if str(dataset_path).endswith(".gz"):
             assert str(dataset_path).endswith(".jsonl.gz"), "Only support .jsonl files"
             with gzip.open(dataset_path, "r") as f:
@@ -43,15 +50,19 @@ class SFTDataset(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self._data) // self._seq_length
-    
+
     def __getitem__(self, idx):
         if idx >= len(self):
             raise IndexError
         return {
-            "input_ids": self._data[idx * self._seq_length : (idx + 1) * self._seq_length],
-            "labels": self._data[idx * self._seq_length + 1 : (idx + 1) * self._seq_length + 1],
+            "input_ids": self._data[
+                idx * self._seq_length : (idx + 1) * self._seq_length
+            ],
+            "labels": self._data[
+                idx * self._seq_length + 1 : (idx + 1) * self._seq_length + 1
+            ],
         }
-    
+
 
 def iterate_batches(dataset: SFTDataset, batch_size: int, shuffle: bool):
     indices = list(range(len(dataset)))
@@ -60,6 +71,8 @@ def iterate_batches(dataset: SFTDataset, batch_size: int, shuffle: bool):
     for i in range(0, len(indices), batch_size):
         batch_indices = indices[i : i + batch_size]
         yield {
-            "input_ids": torch.stack([dataset[idx]["input_ids"] for idx in batch_indices]),
+            "input_ids": torch.stack(
+                [dataset[idx]["input_ids"] for idx in batch_indices]
+            ),
             "labels": torch.stack([dataset[idx]["labels"] for idx in batch_indices]),
         }
