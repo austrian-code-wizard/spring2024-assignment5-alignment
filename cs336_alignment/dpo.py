@@ -51,6 +51,7 @@ def get_dpo_dataset(base_path: str = "/home/shared/hh", num_val: int = 200) -> t
     for path in ["harmless-base.jsonl.gz", "helpful-base.jsonl.gz", "helpful-online.jsonl.gz", "helpful-rejection-sampled.jsonl.gz"]:
         with gzip.open(os.path.join(base_path, path), "r") as f:
             data += [json.loads(line) for line in f]
+    data = [d for d in data if d["chosen"].count("\n\nHuman:") > 1 or d["rejected"].count("\n\nHuman:") > 1]
     data = [{
         "prompt": d["chosen"].split("\n\nAssistant:", maxsplit=1)[0].removeprefix("\n\nHuman: ").strip(),
         "chosen": d["chosen"].split("\n\nAssistant: ", maxsplit=1)[1].split("\n\nHuman: ", maxsplit=1)[0].strip(),
