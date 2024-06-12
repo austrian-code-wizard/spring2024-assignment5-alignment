@@ -272,7 +272,7 @@ def main():
             }
         )
     file_path = (
-        f"results/{args.dataset}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
+        f"results/{args.dataset}_{args.model}_{datetime.now().strftime('%Y-%m-%d-%H-%M-%S')}.json"
     )
     with open(file_path, "w") as file:
         json.dump(results, file, indent=2)
